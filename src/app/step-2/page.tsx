@@ -53,6 +53,10 @@ export default function Step2Page() {
     }
   }, [answers, completedCategories, activeCategory, isHydrated]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeCategory]);
+
   const handleAnswerChange = useCallback((questionId: string, value: string | string[] | number, touched: boolean = true) => {
     setAnswers((prev) => ({ ...prev, [questionId]: { value, touched } }));
   }, []);

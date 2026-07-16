@@ -23,9 +23,9 @@ export const PRIVACY_OFFICER = {
 
 // AI Provider Disclosure
 export const AI_PROVIDER = {
-  name: "OpenAI",
+  name: "Google AI",
   location: "United States",
-  privacyUrl: "https://openai.com/privacy",
+  privacyUrl: "https://policies.google.com/privacy",
 } as const;
 
 // URLs

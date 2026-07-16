@@ -1,7 +1,4 @@
 import { NextRequest } from "next/server";
-import { FALLBACK_ZODIAC } from "@/data/fallback-zodiac";
-
-export const dynamic = "force-static";
 
 interface ZodiacRequest {
   cityOfBirth: string;
@@ -16,18 +13,20 @@ export async function POST(request: NextRequest) {
   let body: ZodiacRequest;
   try {
     body = await request.json();
-  } catch {
-    return Response.json(FALLBACK_ZODIAC);
+  } catch (err: any) {
+    console.error("[generate-zodiac] Payload parsing error:", err);
+    return Response.json({ error: true, message: "Invalid request payload" }, { status: 400 });
   }
 
-  // If no API key, return fallback immediately
+  // If no API key, fail immediately
   if (!GEMINI_API_KEY) {
-    return Response.json(FALLBACK_ZODIAC);
+    console.error("[generate-zodiac] Error: GEMINI_API_KEY environment variable is not defined.");
+    return Response.json({ error: true, message: "Gemini API key is not configured" }, { status: 500 });
   }
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const prompt = `You are an astrology and personality profiler. Based on the following birth details, generate a personalized astrological profile in JSON format.
 
@@ -55,7 +54,7 @@ Guidelines:
 Keep the tone warm, insightful, and encouraging.`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,7 +72,18 @@ Keep the tone warm, insightful, and encouraging.`;
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return Response.json(FALLBACK_ZODIAC);
+      const errText = await response.text();
+      console.error(`[generate-zodiac] Google API Error (Status ${response.status}):`, errText);
+      
+      let clientMsg = `API responded with status ${response.status}`;
+      try {
+        const errObj = JSON.parse(errText);
+        if (errObj.error?.message) {
+          clientMsg = errObj.error.message;
+        }
+      } catch {}
+      
+      return Response.json({ error: true, message: clientMsg }, { status: response.status });
     }
 
     const data = await response.json();
@@ -81,7 +91,8 @@ Keep the tone warm, insightful, and encouraging.`;
     // Extract text from Gemini response
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
-      return Response.json(FALLBACK_ZODIAC);
+      console.error("[generate-zodiac] Error: No text content returned in candidates. Response data:", JSON.stringify(data));
+      return Response.json({ error: true, message: "Empty response content from AI provider" }, { status: 500 });
     }
 
     // Extract JSON from the response
@@ -91,18 +102,20 @@ Keep the tone warm, insightful, and encouraging.`;
     let profile;
     try {
       profile = JSON.parse(jsonStr);
-    } catch {
-      return Response.json(FALLBACK_ZODIAC);
+    } catch (err: any) {
+      console.error("[generate-zodiac] Error: Failed to parse JSON from AI text response. Raw text:", text, err);
+      return Response.json({ error: true, message: "AI response failed JSON structure requirements" }, { status: 500 });
     }
 
     // Validate required fields
     if (!profile.sign || !profile.element || !profile.traits || !profile.compatibility || !profile.advice) {
-      return Response.json(FALLBACK_ZODIAC);
+      console.error("[generate-zodiac] Error: Missing expected schema fields in parsed JSON:", profile);
+      return Response.json({ error: true, message: "AI response missed required zodiac schema fields" }, { status: 500 });
     }
 
     return Response.json(profile);
-  } catch {
-    // Any error returns fallback
-    return Response.json(FALLBACK_ZODIAC);
+  } catch (error: any) {
+    console.error("[generate-zodiac] Catch block exception encountered:", error);
+    return Response.json({ error: true, message: error?.message || "Internal server error during processing" }, { status: 500 });
   }
 }

@@ -1,7 +1,4 @@
 import { NextRequest } from "next/server";
-import { FALLBACK_INSIGHTS } from "@/data/fallback-insights";
-
-export const dynamic = "force-static";
 
 interface InsightsRequest {
   answers: Record<string, { value: string | string[] | number; touched: boolean }>;
@@ -14,18 +11,20 @@ export async function POST(request: NextRequest) {
   let body: InsightsRequest;
   try {
     body = await request.json();
-  } catch {
-    return Response.json(FALLBACK_INSIGHTS);
+  } catch (err: any) {
+    console.error("[generate-insights] Payload parsing error:", err);
+    return Response.json({ error: true, message: "Invalid request payload" }, { status: 400 });
   }
 
-  // If no API key, return fallback immediately
+  // If no API key, fail immediately
   if (!GEMINI_API_KEY) {
-    return Response.json(FALLBACK_INSIGHTS);
+    console.error("[generate-insights] Error: GEMINI_API_KEY environment variable is not defined.");
+    return Response.json({ error: true, message: "Gemini API key is not configured" }, { status: 500 });
   }
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const prompt = `You are a thoughtful marriage readiness counselor. Analyze the following reflection answers and provide personalized insights in JSON format.
 
@@ -60,7 +59,7 @@ Guidelines:
 Keep all text concise (under 100 characters per item) and supportive in tone.`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -78,7 +77,18 @@ Keep all text concise (under 100 characters per item) and supportive in tone.`;
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return Response.json(FALLBACK_INSIGHTS);
+      const errText = await response.text();
+      console.error(`[generate-insights] Google API Error (Status ${response.status}):`, errText);
+      
+      let clientMsg = `API responded with status ${response.status}`;
+      try {
+        const errObj = JSON.parse(errText);
+        if (errObj.error?.message) {
+          clientMsg = errObj.error.message;
+        }
+      } catch {}
+      
+      return Response.json({ error: true, message: clientMsg }, { status: response.status });
     }
 
     const data = await response.json();
@@ -86,7 +96,8 @@ Keep all text concise (under 100 characters per item) and supportive in tone.`;
     // Extract text from Gemini response
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
-      return Response.json(FALLBACK_INSIGHTS);
+      console.error("[generate-insights] Error: No text content returned in candidates. Response data:", JSON.stringify(data));
+      return Response.json({ error: true, message: "Empty response content from AI provider" }, { status: 500 });
     }
 
     // Extract JSON from the response (handle markdown code blocks)
@@ -96,13 +107,15 @@ Keep all text concise (under 100 characters per item) and supportive in tone.`;
     let insights;
     try {
       insights = JSON.parse(jsonStr);
-    } catch {
-      return Response.json(FALLBACK_INSIGHTS);
+    } catch (err: any) {
+      console.error("[generate-insights] Error: Failed to parse JSON from AI text response. Raw text:", text, err);
+      return Response.json({ error: true, message: "AI response failed JSON structure requirements" }, { status: 500 });
     }
 
     // Validate required fields
     if (!insights.strengths || !insights.growthAreas || !insights.discussionAreas || !insights.risks || !insights.recommendations) {
-      return Response.json(FALLBACK_INSIGHTS);
+      console.error("[generate-insights] Error: Missing expected schema fields in parsed JSON:", insights);
+      return Response.json({ error: true, message: "AI response missed required insights schema fields" }, { status: 500 });
     }
 
     // Ensure recommendations have checked property
@@ -112,8 +125,8 @@ Keep all text concise (under 100 characters per item) and supportive in tone.`;
     }));
 
     return Response.json(insights);
-  } catch {
-    // Any error returns fallback
-    return Response.json(FALLBACK_INSIGHTS);
+  } catch (error: any) {
+    console.error("[generate-insights] Catch block exception encountered:", error);
+    return Response.json({ error: true, message: error?.message || "Internal server error during processing" }, { status: 500 });
   }
 }

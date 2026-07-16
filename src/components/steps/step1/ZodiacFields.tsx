@@ -65,7 +65,7 @@ export default function ZodiacFields({ value, onChange }: ZodiacFieldsProps) {
               value={value.cityOfBirth}
               onChange={handleCityChange}
               onBlur={handleCityBlur}
-              placeholder="e.g., Cape Town"
+              placeholder="e.g., District, State"
               className="input"
             />
           </div>

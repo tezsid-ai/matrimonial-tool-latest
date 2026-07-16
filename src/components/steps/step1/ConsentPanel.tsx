@@ -41,7 +41,7 @@ export default function ConsentPanel({ value, onChange }: ConsentPanelProps) {
             type="checkbox"
             checked={value.processing}
             onChange={(e) => handleConsentChange("processing", e.target.checked)}
-            className="mt-1 w-4 h-4 rounded border-[var(--color-sand-dark)] text-[var(--color-gold)] focus:ring-[var(--color-gold)] cursor-pointer"
+            className="mt-1 w-4 h-4 rounded border-[var(--color-sand-dark)] text-[var(--color-gold)] focus:ring-[var(--color-gold)] cursor-pointer shrink-0"
           />
           <span className="text-sm text-[var(--color-slate)] leading-relaxed">
             I consent to my reflection answers being processed to generate my personal insights.{" "}
@@ -55,7 +55,7 @@ export default function ConsentPanel({ value, onChange }: ConsentPanelProps) {
             type="checkbox"
             checked={value.aiProvider}
             onChange={(e) => handleConsentChange("aiProvider", e.target.checked)}
-            className="mt-1 w-4 h-4 rounded border-[var(--color-sand-dark)] text-[var(--color-gold)] focus:ring-[var(--color-gold)] cursor-pointer"
+            className="mt-1 w-4 h-4 rounded border-[var(--color-sand-dark)] text-[var(--color-gold)] focus:ring-[var(--color-gold)] cursor-pointer shrink-0"
           />
           <span className="text-sm text-[var(--color-slate)] leading-relaxed">
             I consent to my answers being sent to our AI provider ({AI_PROVIDER.name}) for processing, 
@@ -77,7 +77,7 @@ export default function ConsentPanel({ value, onChange }: ConsentPanelProps) {
             type="checkbox"
             checked={value.astrology}
             onChange={(e) => handleConsentChange("astrology", e.target.checked)}
-            className="mt-1 w-4 h-4 rounded border-[var(--color-sand-dark)] text-[var(--color-gold)] focus:ring-[var(--color-gold)] cursor-pointer"
+            className="mt-1 w-4 h-4 rounded border-[var(--color-sand-dark)] text-[var(--color-gold)] focus:ring-[var(--color-gold)] cursor-pointer shrink-0"
           />
           <span className="text-sm text-[var(--color-slate)] leading-relaxed">
             I&apos;d like to also generate my Astrology &amp; Personality Profile (optional).
